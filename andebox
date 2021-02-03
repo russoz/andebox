@@ -1,0 +1,271 @@
+#!/usr/bin/env python
+
+import argparse
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import signal
+from functools import reduce
+
+import yaml
+
+
+class AnsibleTestError(Exception):
+    pass
+
+
+class IgnoreFileEntry(object):
+    pattern = re.compile(r'^(?P<filename>\S+)\s(?P<ignore>\S+)(?:\s+#\s*(?P<comment>)\S.*\S)?\s*$')
+    file_filter = None
+    igcheck_filter = None
+    file_parts_depth = None
+
+    def __init__(self, filename, ignore, comment):
+        self.filename = filename
+        self._file_parts = self.filename.split("/")
+
+        if ':' in ignore:
+            self.ignore, self.error_code = ignore.split(":")
+        else:
+            self.ignore, self.error_code = ignore, None
+        self.comment = comment
+
+    @property
+    def ignore_check(self):
+        return "{0}:{1}".format(self.ignore, self.error_code) if self.error_code else self.ignore
+
+    @property
+    def rebuilt_comment(self):
+        return " # {0}".format(self.comment) if self.comment else ""
+
+    @property
+    def file_parts(self):
+        if self.file_parts_depth is None:
+            return os.path.join(*self._file_parts)
+
+        return os.path.join(*self._file_parts[:self.file_parts_depth])
+
+    def __str__(self):
+        return "<IgnoreFileEntry: {0} {1}{2}>".format(self.filename, self.ignore_check, self.rebuilt_comment)
+
+    def __repr__(self):
+        return str(self)
+
+    @staticmethod
+    def parse(line):
+        match = IgnoreFileEntry.pattern.match(line)
+        if not match:
+            raise ValueError("Line cannot be parsed as an ignore-file entry: {0}".format(line))
+
+        ffilter = IgnoreFileEntry.file_filter
+        if ffilter is not None:
+            ffilter = ffilter if isinstance(ffilter, re.Pattern) else re.compile(ffilter)
+            if not ffilter.match(match.group("filename")):
+                return
+
+        ifilter = IgnoreFileEntry.igcheck_filter
+        if ifilter is not None:
+            ifilter = ifilter if isinstance(ifilter, re.Pattern) else re.compile(ifilter)
+            if not ifilter.match(match.group("ignore")):
+                return
+
+        return IgnoreFileEntry(match.group("filename"), match.group("ignore"), match.group("comment"))
+
+
+class ResultLine(object):
+    def __init__(self, file_part, ignore_check, count=1):
+        self.file_part = file_part
+        self.ignore_check = ignore_check
+        self.count = count
+
+    def increase(self):
+        self.count = self.count + 1
+        return self
+
+    def __lt__(self, other):
+        return self.count < other.count
+
+    def __le__(self, other):
+        return self.count <= other.count
+
+    def __gt__(self, other):
+        return self.count > other.count
+
+    def __ge__(self, other):
+        return self.count >= other.count
+
+    def __eq__(self, other):
+        return self.count == other.count
+
+    def __ne__(self, other):
+        return self.count != other.count
+
+    def __str__(self):
+        r = ["{0:6} ".format(self.count)]
+        if self.file_part:
+            r.append(" ")
+            r.append(self.file_part)
+        if self.ignore_check:
+            r.append(" ")
+            r.append(self.ignore_check)
+        return "".join(r)
+
+    def __repr__(self):
+        r = ["<ResultLine: ", str(self.count), ","]
+        if self.file_part:
+            r.append(" ")
+            r.append(self.file_part)
+        if self.ignore_check:
+            r.append(" ")
+            r.append(self.ignore_check)
+        r.append(">")
+        return "".join(r)
+
+
+def build_argparser():
+    parser = argparse.ArgumentParser(description="Ansible Collection Developer's Box")
+    parser.add_argument("--collection", "-c", help="Ansible name for the collection, in the form namespace.name")
+    subparser = parser.add_subparsers(dest="action")
+
+    # test - run ansible-test
+    parser_test = subparser.add_parser("test", help="Runs ansible-test in a temporary environment")
+    parser_test.add_argument("--keep", "-k", action="store_true", help="Keep temporary directory after execution")
+    parser_test.add_argument("ansible_test_params", nargs='+')
+    parser_test.epilog = "Notice the use of '--' to delimit andebox's options from ansible-test's"
+    parser_test.usage = "%(prog)s usage: andebox test [-h] [--keep] -- ansible_test_params [ansible_test_params ...]"
+
+    # ignores - manage ignore files
+    parser_ignores = subparser.add_parser("ignores", help="Gathers stats on ignore*.txt file(s)")
+    parser_ignores.add_argument(
+        "--version", "-v", choices=["2.9", "2.10", "2.11", "-"],
+        help="Use the ignore file matching this Ansible version. The special value '-' may be specified to read "
+             "from stdin instead. If not specified, will use all available files"
+    )
+    parser_ignores.add_argument("--depth", "-d", type=int, help="Path depth for grouping files")
+    parser_ignores.add_argument("--filter", "-f", type=re.compile, help="Regexp to filter out file names")
+    parser_ignores.add_argument("--igfilter", "-i", type=re.compile, help="Regexp to filter out ignored checks")
+    parser_ignores.add_argument("--sort-ignores", "-s", action="store_true", help="Sort the ignored checks only")
+    parser_ignores.add_argument("--count-ignores", "-c", action="store_true",
+                                help="Count the ignored checks per file only")
+    return parser
+
+
+def read_coll_meta():
+    with open("galaxy.yml") as galaxy_meta:
+        meta = yaml.load(galaxy_meta, Loader=yaml.BaseLoader)
+    return meta['namespace'], meta['name']
+
+
+def run_ansible_test(args):
+    coll_vars = {}
+    if args.collection:
+        coll_vars['namespace'], coll_vars['collection'] = args.collection.split('.')
+    else:
+        coll_vars['namespace'], coll_vars['collection'] = read_coll_meta()
+
+    coll_vars['top_dir'] = tempfile.mkdtemp(prefix="andebox.")
+    coll_vars['coll_dir'] = os.path.join(
+        coll_vars['top_dir'], "ansible_collections", coll_vars['namespace'], coll_vars['collection']
+    )
+    os.makedirs(coll_vars['coll_dir'])
+    for v in ('namespace', 'collection', 'top_dir', 'coll_dir'):
+        print("{0:10} = {1}".format(v, coll_vars[v]), file=sys.stderr)
+    print(file=sys.stderr)
+
+    # copy files to tmp ansible coll dir
+    with os.scandir() as it:
+        for entry in it:
+            if entry.name.startswith('.'):
+                continue
+            if entry.is_dir():
+                shutil.copytree(entry.name, os.path.join(coll_vars['coll_dir'], entry.name))
+            else:
+                shutil.copy(entry.name, os.path.join(coll_vars['coll_dir'], entry.name))
+
+    os.putenv('COLLECTIONS_PATH', ':'.join([coll_vars['coll_dir']] + os.environ.get('COLLECTIONS_PATH', '').split(':')))
+    rc = subprocess.call(["ansible-test"] + args.ansible_test_params, cwd=coll_vars['coll_dir'])
+
+    if not args.keep:
+        shutil.rmtree(coll_vars['top_dir'])
+    else:
+        print('Keeping temporary directory: {0}'.format(coll_vars['coll_dir']))
+
+    if rc:
+        raise AnsibleTestError("Error running ansible-test (rc={0})".format(rc))
+
+
+def make_fh_list_for_version(version):
+    ignore_path = os.path.join('.', 'tests', 'sanity')
+    if version == "-":
+        return [sys.stdin]
+    if version:
+        return [open(os.path.join(ignore_path, 'ignore-{0}.txt'.format(version)))]
+    else:
+        with os.scandir(os.path.join(ignore_path)) as it:
+            return [open(os.path.join(ignore_path, entry.name))
+                    for entry in it
+                    if entry.name.startswith("ignore-") and entry.name.endswith(".txt")]
+
+
+def read_ignore_file(fh):
+    result = []
+    with fh:
+        for line in fh.readlines():
+            entry = IgnoreFileEntry.parse(line)
+            if entry:
+                result.append(entry)
+    return result
+
+
+def retrieve_ignore_entries(version):
+    return reduce(lambda a, b: a+b,
+                  [read_ignore_file(fh) for fh in make_fh_list_for_version(version)])
+
+
+def manages_ignores(args):
+    if args.filter:
+        IgnoreFileEntry.file_filter = args.filter
+    if args.igfilter:
+        IgnoreFileEntry.igcheck_filter = args.igfilter
+    if args.depth:
+        IgnoreFileEntry.file_parts_depth = args.depth
+
+    try:
+        ignore_entries = retrieve_ignore_entries(args.version)
+    except Exception as e:
+        print("Error reading ignore file: {0}".format(args.version), file=sys.stderr)
+        raise e
+
+    count_map = {}
+    for entry in ignore_entries:
+        fp = entry.file_parts if not args.sort_ignores else ""
+        ic = entry.ignore_check if not args.count_ignores else ""
+        key = fp + "|" + ic
+        count_map[key] = count_map.get(key, ResultLine(fp, ic, 0)).increase()
+
+    print("\n".join([str(s) for s in sorted(count_map.values(), reverse=True)]))
+
+
+def main():
+    actions = dict(
+        test=run_ansible_test,
+        ignores=manages_ignores,
+    )
+
+    parser = build_argparser()
+    args = parser.parse_args()
+    action = actions[args.action]
+    action(args)
+
+
+if __name__ == '__main__':
+    try:
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+        main()
+    except (BrokenPipeError, IOError):
+        pass
+    except AnsibleTestError as e:
+        print(str(e), file=sys.stderr)
