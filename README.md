@@ -11,13 +11,16 @@ It also allows some basic stats gathering from the `tests/sanity/ignore-X.Y.txt`
 
 ## Installation
 
-Just do the regular:
+For the time being, install directly from the git URL:
 
-    pip install andebox
+    pip install git+https://github.com/russoz/andebox
+
+We should soon enough put it into PyPI for a more regular procedure.
 
 ### Dependencies
 
-As of this version, the only dependency is `PyYAML` for reading `galaxy.yml`.
+As of this version, the dependencies are `PyYAML` for reading `galaxy.yml`, and `ansible` itself for 
+the drop-in `ansible-test` feature (see comments below).
 
 ## Featured actions
 
@@ -65,6 +68,10 @@ namespace and name from there. If the file is not present or if it fails for any
 be used to specify it, as in:
 
     andebox test --collection community.general -- sanity --docker default -v --test validate-modules plugins/modules/system/xfconf.py
+
+Also notice that `andebox` rely on `ansible-test` being available in `PATH` for execution. This gives the developer 
+freedom to use any version of `ansible` they see fit, and even allowing a more sophisticated setup (with `tox` for 
+example) to test their code with multiple `ansible` versions.
 
 ### Stats on ignore files
 
@@ -141,4 +148,3 @@ optional arguments:
   --sort-ignores, -s    Sort the ignored checks only
   --count-ignores, -c   Count the ignored checks per file only
 ```
-
