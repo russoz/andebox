@@ -128,7 +128,7 @@ class ResultLine(object):
 def build_argparser():
     parser = argparse.ArgumentParser(description="Ansible Collection Developer's Box")
     parser.add_argument("--collection", "-c", help="Ansible name for the collection, in the form namespace.name")
-    subparser = parser.add_subparsers(dest="action")
+    subparser = parser.add_subparsers(dest="action", required=True)
 
     # test - run ansible-test
     parser_test = subparser.add_parser("test", help="Runs ansible-test in a temporary environment")
