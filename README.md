@@ -78,7 +78,7 @@ example) to test their code with multiple `ansible` versions.
 After installing the tool, ensuring it is in your `PATH` or use the absolute path for it, simply run:
 
     cd git/community.general   # example, it should work on any collection
-    andebox ignores -v2.10 -d4 -i '.*:parameter-list-no-elements' | head
+    andebox ignores -v2.10 -d4 -i '.*:parameter-list-no-elements'
 
 Producing an output similar to:
 
@@ -92,59 +92,3 @@ Producing an output similar to:
      3  plugins/modules/cloud/univention validate-modules:parameter-list-no-elements
      3  plugins/modules/clustering/consul validate-modules:parameter-list-no-elements
      3  plugins/modules/monitoring/sensu validate-modules:parameter-list-no-elements
-
-## CLI Help
-
-### Basic usage
-```
-# andebox -h
-usage: andebox [-h] [--collection COLLECTION] {test,ignores} ...
-
-Ansible Collection Developer's Box
-
-positional arguments:
-  {test,ignores}
-    test                Runs ansible-test in a temporary environment
-    ignores             Gathers stats on ignore*.txt file(s)
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --collection COLLECTION, -c COLLECTION
-                        Ansible name for the collection, in the form namespace.name
-```
-
-### Ansible Test usage
-```
-# andebox test -h
-usage: andebox test usage: andebox test [-h] [--keep] -- ansible_test_params [ansible_test_params ...]
-
-positional arguments:
-  ansible_test_params
-
-optional arguments:
-  -h, --help           show this help message and exit
-  --keep, -k           Keep temporary directory after execution
-
-Notice the use of '--' to delimit andebox's options from ansible-test's
-```
-
-### Gathers stats on ignore files
-```
-# andebox ignores -h
-usage: andebox ignores [-h] [--version {2.9,2.10,2.11,-}] [--depth DEPTH] [--filter FILTER] [--igfilter IGFILTER] [--sort-ignores]
-                       [--count-ignores]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --version {2.9,2.10,2.11,-}, -v {2.9,2.10,2.11,-}
-                        Use the ignore file matching this Ansible version. The special value '-' may be specified to read from
-                        stdin instead. If not specified, will use all available files
-  --depth DEPTH, -d DEPTH
-                        Path depth for grouping files
-  --filter FILTER, -f FILTER
-                        Regexp to filter out file names
-  --igfilter IGFILTER, -i IGFILTER
-                        Regexp to filter out ignored checks
-  --sort-ignores, -s    Sort the ignored checks only
-  --count-ignores, -c   Count the ignored checks per file only
-```

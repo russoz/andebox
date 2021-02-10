@@ -279,3 +279,4 @@ if __name__ == '__main__':
         pass
     except AnsibleTestError as e:
         print(str(e), file=sys.stderr)
+        exit(1)
