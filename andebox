@@ -150,6 +150,9 @@ def build_argparser():
     parser_ignores.add_argument("--sort-ignores", "-s", action="store_true", help="Sort the ignored checks only")
     parser_ignores.add_argument("--count-ignores", "-c", action="store_true",
                                 help="Count the ignored checks per file only")
+    parser_ignores.add_argument("--head", "-H", type=int, default=10,
+                                help="Number of lines to display in the output. If positive, show the leading lines,"
+                                     " if negative, show the trailing lines, else show all lines")
     return parser
 
 
@@ -193,7 +196,7 @@ def run_ansible_test(args):
     else:
         print('Keeping temporary directory: {0}'.format(coll_vars['coll_dir']))
 
-    if rc:
+    if rc != 0:
         raise AnsibleTestError("Error running ansible-test (rc={0})".format(rc))
 
 
@@ -225,6 +228,12 @@ def retrieve_ignore_entries(version):
                   [read_ignore_file(fh) for fh in make_fh_list_for_version(version)])
 
 
+def filter_lines(lines, num):
+    if num == 0:
+        return lines
+    return lines[num:] if num < 0 else lines[:num]
+
+
 def manages_ignores(args):
     if args.filter:
         IgnoreFileEntry.file_filter = args.filter
@@ -246,7 +255,8 @@ def manages_ignores(args):
         key = fp + "|" + ic
         count_map[key] = count_map.get(key, ResultLine(fp, ic, 0)).increase()
 
-    print("\n".join([str(s) for s in sorted(count_map.values(), reverse=True)]))
+    lines = [str(s) for s in sorted(count_map.values(), reverse=True)]
+    print("\n".join(filter_lines(lines, args.head)))
 
 
 def main():
