@@ -162,12 +162,17 @@ def read_coll_meta():
     return meta['namespace'], meta['name']
 
 
+def determine_collection(coll_arg):
+    if coll_arg:
+        coll_split = coll_arg.split('.')
+        return '.'.join(coll_split[:-1]), coll_split[-1]
+    return read_coll_meta()
+
+
 def run_ansible_test(args):
     coll_vars = {}
-    if args.collection:
-        coll_vars['namespace'], coll_vars['collection'] = args.collection.split('.')
-    else:
-        coll_vars['namespace'], coll_vars['collection'] = read_coll_meta()
+
+    coll_vars['namespace'], coll_vars['collection'] = determine_collection(args.collection)
 
     coll_vars['top_dir'] = tempfile.mkdtemp(prefix="andebox.")
     coll_vars['coll_dir'] = os.path.join(
@@ -175,7 +180,7 @@ def run_ansible_test(args):
     )
     os.makedirs(coll_vars['coll_dir'])
     for v in ('namespace', 'collection', 'top_dir', 'coll_dir'):
-        print("{0:10} = {1}".format(v, coll_vars[v]), file=sys.stderr)
+        print("{0:15} = {1}".format(v, coll_vars[v]), file=sys.stderr)
     print(file=sys.stderr)
 
     # copy files to tmp ansible coll dir
