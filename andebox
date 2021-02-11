@@ -180,7 +180,7 @@ def run_ansible_test(args):
     )
     os.makedirs(coll_vars['coll_dir'])
     for v in ('namespace', 'collection', 'top_dir', 'coll_dir'):
-        print("{0:15} = {1}".format(v, coll_vars[v]), file=sys.stderr)
+        print("{0:10} = {1}".format(v, coll_vars[v]), file=sys.stderr)
     print(file=sys.stderr)
 
     # copy files to tmp ansible coll dir
