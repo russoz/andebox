@@ -158,9 +158,10 @@ def build_argparser():
                                 help="Number of lines to display in the output. If positive, show the leading lines,"
                                      " if negative, show the trailing lines, else show all lines")
 
-    # test - run ansible-test
+    # depre - check for plugin deprecations
     parser_depre = subparser.add_parser("depre", help="Returns deprecation information for plugin")
-    parser_depre.add_argument("--plugin-type", "-pt", help="Keep temporary directory after execution")
+    parser_depre.add_argument("--plugin-type", "-pt", choices=PLUGIN_TYPES,
+                              help="Keep temporary directory after execution")
     parser_depre.add_argument("--regex", "--regexp", "-r", help="Treat plugin names as regular expressions")
     parser_depre.add_argument("plugin_names", nargs='+')
 
@@ -253,23 +254,23 @@ def filter_lines(lines, num):
 
 
 def manages_ignores(args):
-    if args.filter:
-        IgnoreFileEntry.file_filter = args.filter
-    if args.igfilter:
-        IgnoreFileEntry.igcheck_filter = args.igfilter
+    if args.plugin_filter:
+        IgnoreFileEntry.file_filter = args.plugin_filter
+    if args.check_filter:
+        IgnoreFileEntry.igcheck_filter = args.check_filter
     if args.depth:
         IgnoreFileEntry.file_parts_depth = args.depth
 
     try:
-        ignore_entries = retrieve_ignore_entries(args.version)
+        ignore_entries = retrieve_ignore_entries(args.ignore_file_spec)
     except Exception as e:
-        print("Error reading ignore file: {0}".format(args.version), file=sys.stderr)
+        print("Error reading ignore file: {0}".format(args.ignore_file_spec), file=sys.stderr)
         raise e
 
     count_map = {}
     for entry in ignore_entries:
-        fp = entry.file_parts if not args.sort_ignores else ""
-        ic = entry.ignore_check if not args.count_ignores else ""
+        fp = entry.file_parts if not args.groupby_plugin else ""
+        ic = entry.ignore_check if not args.groupby_check else ""
         key = fp + "|" + ic
         count_map[key] = count_map.get(key, ResultLine(fp, ic, 0)).increase()
 
