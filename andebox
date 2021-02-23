@@ -11,6 +11,10 @@ import signal
 from functools import reduce
 
 import yaml
+from distutils.version import LooseVersion
+
+
+PLUGIN_TYPES = ('connection', 'lookup', 'modules', 'doc_fragments', 'module_utils', 'callback', 'inventory')
 
 
 class AnsibleTestError(Exception):
@@ -63,13 +67,13 @@ class IgnoreFileEntry(object):
         ffilter = IgnoreFileEntry.file_filter
         if ffilter is not None:
             ffilter = ffilter if isinstance(ffilter, re.Pattern) else re.compile(ffilter)
-            if not ffilter.match(match.group("filename")):
+            if not ffilter.search(match.group("filename")):
                 return
 
         ifilter = IgnoreFileEntry.igcheck_filter
         if ifilter is not None:
             ifilter = ifilter if isinstance(ifilter, re.Pattern) else re.compile(ifilter)
-            if not ifilter.match(match.group("ignore")):
+            if not ifilter.search(match.group("ignore")):
                 return
 
         return IgnoreFileEntry(match.group("filename"), match.group("ignore"), match.group("comment"))
@@ -135,38 +139,45 @@ def build_argparser():
     parser_test.add_argument("--keep", "-k", action="store_true", help="Keep temporary directory after execution")
     parser_test.add_argument("ansible_test_params", nargs='+')
     parser_test.epilog = "Notice the use of '--' to delimit andebox's options from ansible-test's"
-    parser_test.usage = "%(prog)s usage: andebox test [-h] [--keep] -- ansible_test_params [ansible_test_params ...]"
+    parser_test.usage = "%(prog)s usage: andebox test [-h] [--keep] -- [ansible_test_params ...]"
 
     # ignores - manage ignore files
     parser_ignores = subparser.add_parser("ignores", help="Gathers stats on ignore*.txt file(s)")
     parser_ignores.add_argument(
-        "--version", "-v", choices=["2.9", "2.10", "2.11", "-"],
+        "--ignore-file-spec", "-ifs", choices=["2.9", "2.10", "2.11", "-"],
         help="Use the ignore file matching this Ansible version. The special value '-' may be specified to read "
              "from stdin instead. If not specified, will use all available files"
     )
     parser_ignores.add_argument("--depth", "-d", type=int, help="Path depth for grouping files")
-    parser_ignores.add_argument("--filter", "-f", type=re.compile, help="Regexp to filter out file names")
-    parser_ignores.add_argument("--igfilter", "-i", type=re.compile, help="Regexp to filter out ignored checks")
-    parser_ignores.add_argument("--sort-ignores", "-s", action="store_true", help="Sort the ignored checks only")
-    parser_ignores.add_argument("--count-ignores", "-c", action="store_true",
+    parser_ignores.add_argument("--plugin-filter", "-pf", type=re.compile, help="Regexp to filter out file names")
+    parser_ignores.add_argument("--check-filter", "-cf", type=re.compile, help="Regexp to filter out ignored checks")
+    parser_ignores.add_argument("--groupby-plugin", "-gp", action="store_true", help="Sort the ignored checks only")
+    parser_ignores.add_argument("--groupby-check", "-gc", action="store_true",
                                 help="Count the ignored checks per file only")
     parser_ignores.add_argument("--head", "-H", type=int, default=10,
                                 help="Number of lines to display in the output. If positive, show the leading lines,"
                                      " if negative, show the trailing lines, else show all lines")
+
+    # test - run ansible-test
+    parser_depre = subparser.add_parser("depre", help="Returns deprecation information for plugin")
+    parser_depre.add_argument("--plugin-type", "-pt", help="Keep temporary directory after execution")
+    parser_depre.add_argument("--regex", "--regexp", "-r", help="Treat plugin names as regular expressions")
+    parser_depre.add_argument("plugin_names", nargs='+')
+
     return parser
 
 
 def read_coll_meta():
     with open("galaxy.yml") as galaxy_meta:
         meta = yaml.load(galaxy_meta, Loader=yaml.BaseLoader)
-    return meta['namespace'], meta['name']
+    return meta['namespace'], meta['name'], meta['version']
 
 
 def determine_collection(coll_arg):
     if coll_arg:
         coll_split = coll_arg.split('.')
         return '.'.join(coll_split[:-1]), coll_split[-1]
-    return read_coll_meta()
+    return read_coll_meta()[:2]
 
 
 def run_ansible_test(args):
@@ -183,26 +194,28 @@ def run_ansible_test(args):
         print("{0:10} = {1}".format(v, coll_vars[v]), file=sys.stderr)
     print(file=sys.stderr)
 
-    # copy files to tmp ansible coll dir
-    with os.scandir() as it:
-        for entry in it:
-            if entry.name.startswith('.'):
-                continue
-            if entry.is_dir():
-                shutil.copytree(entry.name, os.path.join(coll_vars['coll_dir'], entry.name))
-            else:
-                shutil.copy(entry.name, os.path.join(coll_vars['coll_dir'], entry.name))
+    try:
+        # copy files to tmp ansible coll dir
+        with os.scandir() as it:
+            for entry in it:
+                if entry.name.startswith('.'):
+                    continue
+                if entry.is_dir():
+                    shutil.copytree(entry.name, os.path.join(coll_vars['coll_dir'], entry.name))
+                else:
+                    shutil.copy(entry.name, os.path.join(coll_vars['coll_dir'], entry.name))
 
-    os.putenv('COLLECTIONS_PATH', ':'.join([coll_vars['coll_dir']] + os.environ.get('COLLECTIONS_PATH', '').split(':')))
-    rc = subprocess.call(["ansible-test"] + args.ansible_test_params, cwd=coll_vars['coll_dir'])
+        os.putenv('COLLECTIONS_PATH', ':'.join([coll_vars['coll_dir']] + os.environ.get('COLLECTIONS_PATH', '').split(':')))
+        rc = subprocess.call(["ansible-test"] + args.ansible_test_params, cwd=coll_vars['coll_dir'])
 
-    if not args.keep:
-        shutil.rmtree(coll_vars['top_dir'])
-    else:
-        print('Keeping temporary directory: {0}'.format(coll_vars['coll_dir']))
+        if rc != 0:
+            raise AnsibleTestError("Error running ansible-test (rc={0})".format(rc))
 
-    if rc != 0:
-        raise AnsibleTestError("Error running ansible-test (rc={0})".format(rc))
+    finally:
+        if not args.keep:
+            shutil.rmtree(coll_vars['top_dir'])
+        else:
+            print('Keeping temporary directory: {0}'.format(coll_vars['coll_dir']))
 
 
 def make_fh_list_for_version(version):
@@ -264,10 +277,16 @@ def manages_ignores(args):
     print("\n".join(filter_lines(lines, args.head)))
 
 
+def deprecated(args):
+    with open(os.path.join("meta", "runtime.yml")) as runtime_yml:
+        runtime = yaml.load(runtime_yml, Loader=yaml.BaseLoader)
+
+
 def main():
     actions = dict(
         test=run_ansible_test,
         ignores=manages_ignores,
+        isdepre=deprecated,
     )
 
     parser = build_argparser()
@@ -280,6 +299,8 @@ if __name__ == '__main__':
     try:
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
         main()
+    except KeyboardInterrupt:
+        exit(2)
     except (BrokenPipeError, IOError):
         pass
     except AnsibleTestError as e:
