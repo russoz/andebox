@@ -296,23 +296,23 @@ def print_depre(name, node, curr_version):
         return
 
 
-def depre_process_plugin(regex, name_param, runtime, plugin_types, curr_version):
+def depre_process_plugin(regex, name_param, plugin_routing, plugin_types, curr_version):
     for plugin_type in plugin_types:
         if regex:
             pattern = re.compile(name_param)
             matches = [n
-                       for n in runtime[plugin_type]
+                       for n in plugin_routing[plugin_type]
                        if pattern.search(n)]
             for name in matches:
-                print_depre('.'.join(plugin_type, name), runtime[plugin_type][name], curr_version)
+                print_depre('{0}.{1}'.format(plugin_type, name), plugin_routing[plugin_type][name], curr_version)
         else:
             if name_param.endswith('.py'):
                 name = name_param.split('/')[-1]
                 name = name.split('.')[0]
             else:
                 name = name_param
-            if name in runtime[plugin_type]:
-                print_depre('.'.join(plugin_type, name), runtime[plugin_type][name], curr_version)
+            if name in plugin_routing[plugin_type]:
+                print_depre('{0}.{1}'.format(plugin_type, name), plugin_routing[plugin_type][name], curr_version)
 
 
 def deprecated(args):
@@ -323,7 +323,7 @@ def deprecated(args):
     _, _, curr_version = read_coll_meta()
 
     for name in args.plugin_names:
-        depre_process_plugin(args.regex, name, runtime, plugin_types, curr_version)
+        depre_process_plugin(args.regex, name, runtime['plugin_routing'], plugin_types, curr_version)
 
 
 def main():
