@@ -165,7 +165,8 @@ def build_argparser():
     parser_depre = subparser.add_parser("depre", help="Returns deprecation information for plugin")
     parser_depre.add_argument("--plugin-type", "-pt", choices=PLUGIN_TYPES,
                               help="Keep temporary directory after execution")
-    parser_depre.add_argument("--regex", "--regexp", "-r", help="Treat plugin names as regular expressions")
+    parser_depre.add_argument("--regex", "--regexp", "-r", action="store_true",
+                              help="Treat plugin names as regular expressions")
     parser_depre.add_argument("plugin_names", nargs='+')
 
     return parser
