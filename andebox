@@ -24,7 +24,7 @@ class AnsibleTestError(Exception):
 class IgnoreFileEntry(object):
     pattern = re.compile(r'^(?P<filename>\S+)\s(?P<ignore>\S+)(?:\s+#\s*(?P<comment>)\S.*\S)?\s*$')
     file_filter = None
-    igcheck_filter = None
+    check_filter = None
     file_parts_depth = None
 
     def __init__(self, filename, ignore, comment):
@@ -70,7 +70,7 @@ class IgnoreFileEntry(object):
             if not ffilter.search(match.group("filename")):
                 return
 
-        ifilter = IgnoreFileEntry.igcheck_filter
+        ifilter = IgnoreFileEntry.check_filter
         if ifilter is not None:
             ifilter = ifilter if isinstance(ifilter, re.Pattern) else re.compile(ifilter)
             if not ifilter.search(match.group("ignore")):
@@ -149,14 +149,17 @@ def build_argparser():
              "from stdin instead. If not specified, will use all available files"
     )
     parser_ignores.add_argument("--depth", "-d", type=int, help="Path depth for grouping files")
-    parser_ignores.add_argument("--plugin-filter", "-pf", type=re.compile, help="Regexp to filter out file names")
-    parser_ignores.add_argument("--check-filter", "-cf", type=re.compile, help="Regexp to filter out ignored checks")
-    parser_ignores.add_argument("--groupby-plugin", "-gp", action="store_true", help="Sort the ignored checks only")
-    parser_ignores.add_argument("--groupby-check", "-gc", action="store_true",
-                                help="Count the ignored checks per file only")
+    parser_ignores.add_argument("--file-filter", "-pf", type=re.compile,
+                                help="Regexp matching file names to be included")
+    parser_ignores.add_argument("--check-filter", "-cf", type=re.compile,
+                                help="Regexp matching checks in ignore files to be included")
+    parser_ignores.add_argument("--supress-files", "-sf", action="store_true",
+                                help="Supress file names from the output, consolidating the results")
+    parser_ignores.add_argument("--supress-checks", "-sc", action="store_true",
+                                help="Supress the checks from the output, consolidating the results")
     parser_ignores.add_argument("--head", "-H", type=int, default=10,
-                                help="Number of lines to display in the output. If positive, show the leading lines,"
-                                     " if negative, show the trailing lines, else show all lines")
+                                help="Number of lines to display in the output: leading lines if positive,"
+                                     " trailing lines if negative, all lines if zero.")
 
     # depre - check for plugin deprecations
     parser_depre = subparser.add_parser("depre", help="Returns deprecation information for plugin")
@@ -254,10 +257,10 @@ def filter_lines(lines, num):
 
 
 def manages_ignores(args):
-    if args.plugin_filter:
-        IgnoreFileEntry.file_filter = args.plugin_filter
+    if args.file_filter:
+        IgnoreFileEntry.file_filter = args.file_filter
     if args.check_filter:
-        IgnoreFileEntry.igcheck_filter = args.check_filter
+        IgnoreFileEntry.check_filter = args.check_filter
     if args.depth:
         IgnoreFileEntry.file_parts_depth = args.depth
 
@@ -269,8 +272,8 @@ def manages_ignores(args):
 
     count_map = {}
     for entry in ignore_entries:
-        fp = entry.file_parts if not args.groupby_plugin else ""
-        ic = entry.ignore_check if not args.groupby_check else ""
+        fp = entry.file_parts if not args.supress_files else ""
+        ic = entry.ignore_check if not args.supress_checks else ""
         key = fp + "|" + ic
         count_map[key] = count_map.get(key, ResultLine(fp, ic, 0)).increase()
 
@@ -278,9 +281,48 @@ def manages_ignores(args):
     print("\n".join(filter_lines(lines, args.head)))
 
 
+def print_depre(name, node, curr_version):
+    redir, tomb, depre = [node.get(x) for x in ('redirect', 'tombstone', 'deprecation')]
+    if redir:
+        print('R {0}: redirected to {1}'.format(name, redir))
+        return
+    if tomb:
+        print('T {0}: dead in {1}: {2}'.format(name, tomb['removal_version'], tomb['warning_text']))
+        return
+    if depre:
+        print('D {0}: deprecation in {1} (current={2}): {3}'.format(
+            name, depre['removal_version'], curr_version, depre['warning_text']))
+        return
+
+
+def depre_process_plugin(regex, name_param, runtime, plugin_types, curr_version):
+    for plugin_type in plugin_types:
+        if regex:
+            pattern = re.compile(name_param)
+            matches = [n
+                       for n in runtime[plugin_type]
+                       if pattern.search(n)]
+            for name in matches:
+                print_depre('.'.join(plugin_type, name), runtime[plugin_type][name], curr_version)
+        else:
+            if name_param.endswith('.py'):
+                name = name_param.split('/')[-1]
+                name = name.split('.')[0]
+            else:
+                name = name_param
+            if name in runtime[plugin_type]:
+                print_depre('.'.join(plugin_type, name), runtime[plugin_type][name], curr_version)
+
+
 def deprecated(args):
     with open(os.path.join("meta", "runtime.yml")) as runtime_yml:
         runtime = yaml.load(runtime_yml, Loader=yaml.BaseLoader)
+
+    plugin_types = [args.plugin_type] if args.plugin_type else PLUGIN_TYPES
+    _, _, curr_version = read_coll_meta()
+
+    for name in args.plugin_names:
+        depre_process_plugin(args.regex, name, runtime, plugin_types, curr_version)
 
 
 def main():
