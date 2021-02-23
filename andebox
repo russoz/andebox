@@ -330,7 +330,7 @@ def main():
     actions = dict(
         test=run_ansible_test,
         ignores=manages_ignores,
-        isdepre=deprecated,
+        depre=deprecated,
     )
 
     parser = build_argparser()
