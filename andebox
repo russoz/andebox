@@ -218,6 +218,7 @@ def run_ansible_test(args):
 
     finally:
         if not args.keep:
+            print('Removing temporary directory: {0}'.format(coll_vars['coll_dir']))
             shutil.rmtree(coll_vars['top_dir'])
         else:
             print('Keeping temporary directory: {0}'.format(coll_vars['coll_dir']))
@@ -288,7 +289,7 @@ def print_depre(name, node, curr_version):
         print('R {0}: redirected to {1}'.format(name, redir))
         return
     if tomb:
-        print('T {0}: dead in {1}: {2}'.format(name, tomb['removal_version'], tomb['warning_text']))
+        print('T {0}: terminated in {1}: {2}'.format(name, tomb['removal_version'], tomb['warning_text']))
         return
     if depre:
         print('D {0}: deprecation in {1} (current={2}): {3}'.format(
