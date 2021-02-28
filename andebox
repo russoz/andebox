@@ -149,7 +149,7 @@ def build_argparser():
              "from stdin instead. If not specified, will use all available files"
     )
     parser_ignores.add_argument("--depth", "-d", type=int, help="Path depth for grouping files")
-    parser_ignores.add_argument("--file-filter", "-pf", type=re.compile,
+    parser_ignores.add_argument("--file-filter", "-ff", type=re.compile,
                                 help="Regexp matching file names to be included")
     parser_ignores.add_argument("--check-filter", "-cf", type=re.compile,
                                 help="Regexp matching checks in ignore files to be included")
@@ -164,7 +164,7 @@ def build_argparser():
     # depre - check for plugin deprecations
     parser_depre = subparser.add_parser("depre", help="Returns deprecation information for plugin")
     parser_depre.add_argument("--plugin-type", "-pt", choices=PLUGIN_TYPES,
-                              help="Keep temporary directory after execution")
+                              help="Specify the plugin type to be searched")
     parser_depre.add_argument("--regex", "--regexp", "-r", action="store_true",
                               help="Treat plugin names as regular expressions")
     parser_depre.add_argument("plugin_names", nargs='+')
