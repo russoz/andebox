@@ -66,12 +66,11 @@ class AndeboxAction(object):
         return self.read_coll_meta()[:2]
 
     @staticmethod
-    def copy_exclude_regex_lines(src, dest, regex):
-        patt = re.compile(regex)
+    def copy_exclude_lines(src, dest, filenames):
         with open(src, "r") as src_file:
             with open(dest, "w") as dest_file:
                 for line in src_file.readline():
-                    if not patt.search(line):
+                    if not any(line.startswith(f) for f in filenames):
                         dest_file.write(line)
 
 
@@ -193,8 +192,8 @@ class AnsibleTestAction(AndeboxAction):
     args = [
         dict(names=("--keep", "-k"),
              specs=dict(action="store_true", help="Keep temporary directory after execution")),
-        dict(names=("--exclude-ignore-regex", "-eir"),
-             specs=dict(help="Matching lines in ignore files will be filtered out")),
+        dict(names=("--exclude-ignore", "-ei"),
+             specs=dict(action="store_true", help="Matching lines in ignore files will be filtered out")),
         dict(names=("ansible_test_params", ),
              specs=dict(nargs="+")),
     ]
@@ -226,15 +225,17 @@ class AnsibleTestAction(AndeboxAction):
                     else:
                         shutil.copy(entry.name, os.path.join(coll_dir, entry.name))
 
-            if args.exclude_ignore_regex:
+            if args.exclude_ignore:
                 src_dir = os.path.join(os.getcwd(), 'tests', 'sanity')
                 dest_dir = os.path.join(coll_dir, 'tests', 'sanity')
                 with os.scandir(src_dir) as ts_dir:
                     for ts_entry in ts_dir:
                         if ts_entry.name.startswith('ignore-') and ts_entry.name.endswith('.txt'):
-                            self.copy_exclude_regex_lines(os.path.join(src_dir, ts_entry.name),
-                                                          os.path.join(dest_dir, ts_entry.name),
-                                                          args.exclude_ignore_regex)
+                            self.copy_exclude_lines(os.path.join(src_dir, ts_entry.name),
+                                                    os.path.join(dest_dir, ts_entry.name),
+                                                    [f for
+                                                     f in args.ansible_test_params
+                                                     if f.endswith('.py')])
 
             os.putenv('COLLECTIONS_PATH', ':'.join([coll_dir] + os.environ.get('COLLECTIONS_PATH', '').split(':')))
             rc = subprocess.call(["ansible-test"] + args.ansible_test_params, cwd=coll_dir)
@@ -265,7 +266,7 @@ class IgnoreLinesAction(AndeboxAction):
              specs=dict(type=re.compile, help="Regexp matching file names to be included")),
         dict(names=["--check-filter", "-cf"],
              specs=dict(type=re.compile, help="Regexp matching checks in ignore files to be included")),
-        dict(names=["--supress-files", "-sf"],
+        dict(names=["--suppress-files", "-sf"],
              specs=dict(action="store_true", help="Supress file names from the output, consolidating the results")),
         dict(names=["--suppress-checks", "-sc"],
              specs=dict(action="store_true", help="Suppress the checks from the output, consolidating the results")),
@@ -323,8 +324,8 @@ class IgnoreLinesAction(AndeboxAction):
 
         count_map = {}
         for entry in ignore_entries:
-            fp = entry.file_parts if not args.supress_files else ""
-            ic = entry.ignore_check if not args.supress_checks else ""
+            fp = entry.file_parts if not args.suppress_files else ""
+            ic = entry.ignore_check if not args.suppress_checks else ""
             key = fp + "|" + ic
             count_map[key] = count_map.get(key, ResultLine(fp, ic, 0)).increase()
 
