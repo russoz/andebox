@@ -341,7 +341,7 @@ def info_type(types, v):
         raise argparse.ArgumentTypeError("invalid value: {0}".format(v))
 
 
-class DeprecationsAction(AndeboxAction):
+class RuntimeAction(AndeboxAction):
     RUNTIME_TYPES = ('redirect', 'tombstone', 'deprecation')
     name = "runtime"
     help = "Returns runtime.yml information on the plugin"
@@ -365,7 +365,7 @@ class DeprecationsAction(AndeboxAction):
 
     def print_depre(self, name, node):
         def is_info_type(_type):
-            return self.info_type is not None and self.info_type.lower() == _type.lower()
+            return self.info_type is None or self.info_type.lower() == _type.lower()
 
         redir, tomb, depre = [node.get(x) for x in self.RUNTIME_TYPES]
         if redir and is_info_type('R'):
@@ -408,7 +408,7 @@ class DeprecationsAction(AndeboxAction):
 
 def main():
     box = AndeBox()
-    box.add_actions(AnsibleTestAction, IgnoreLinesAction, DeprecationsAction)
+    box.add_actions(AnsibleTestAction, IgnoreLinesAction, RuntimeAction)
     box.run()
 
 
