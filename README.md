@@ -11,11 +11,9 @@ It also allows some basic stats gathering from the `tests/sanity/ignore-X.Y.txt`
 
 ## Installation
 
-For the time being, install directly from the git URL:
+Install it as usual:
 
-    pip install git+https://github.com/russoz/andebox
-
-We should soon enough put it into PyPI for a more regular procedure.
+    pip install andebox
 
 ### Dependencies
 

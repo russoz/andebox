@@ -13,6 +13,9 @@ from functools import reduce, partial
 import yaml
 
 
+__version__ = '0.0.1'
+
+
 PLUGIN_TYPES = ('connection', 'lookup', 'modules', 'doc_fragments', 'module_utils', 'callback', 'inventory')
 
 
