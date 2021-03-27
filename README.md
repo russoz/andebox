@@ -148,7 +148,7 @@ D modules scaleway_volume_facts: deprecation in 3.0.0 (current=2.3.0): Use commu
 ```
 
 ```
-andebox runtime -r 'gc[pe]'
+$ andebox runtime -r 'gc[pe]'
 R lookup gcp_storage_file: redirected to community.google.gcp_storage_file
 T modules gce: terminated in 2.0.0: Use google.cloud.gcp_compute_instance instead.
 R modules gce_eip: redirected to community.google.gce_eip
@@ -173,3 +173,4 @@ R doc_fragments _gcp: redirected to community.google._gcp
 R module_utils gce: redirected to community.google.gce
 R module_utils gcp: redirected to community.google.gcp
 ```
+where D=Deprecated, T=Tombstone, R=Redirect.
