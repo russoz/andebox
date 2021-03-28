@@ -137,14 +137,8 @@ optional arguments:
 Quickly peek what's in the `runtime.yml`:
 
 ```
-$ andebox runtime -r scale
-D modules scaleway_image_facts: deprecation in 3.0.0 (current=2.3.0): Use community.general.scaleway_image_info instead.
-D modules scaleway_ip_facts: deprecation in 3.0.0 (current=2.3.0): Use community.general.scaleway_ip_info instead.
-D modules scaleway_organization_facts: deprecation in 3.0.0 (current=2.3.0): Use community.general.scaleway_organization_info instead.
-D modules scaleway_security_group_facts: deprecation in 3.0.0 (current=2.3.0): Use community.general.scaleway_security_group_info instead.
-D modules scaleway_server_facts: deprecation in 3.0.0 (current=2.3.0): Use community.general.scaleway_server_info instead.
-D modules scaleway_snapshot_facts: deprecation in 3.0.0 (current=2.3.0): Use community.general.scaleway_snapshot_info instead.
-D modules scaleway_volume_facts: deprecation in 3.0.0 (current=2.3.0): Use community.general.scaleway_volume_info instead.
+$ andebox runtime scaleway_ip_facts
+D modules scaleway_ip_facts: deprecation in 3.0.0 (current=2.4.0): Use community.general.scaleway_ip_info instead.
 ```
 
 ```
