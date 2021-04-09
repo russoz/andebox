@@ -266,7 +266,7 @@ class IgnoreLinesAction(AndeboxAction):
     help = "Gathers stats on ignore*.txt file(s)"
     args = [
         dict(names=["--ignore-file-spec", "-ifs"],
-             specs=dict(choices=["2.9", "2.10", "2.11", "-"],
+             specs=dict(choices=["2.9", "2.10", "2.11", "2.12", "-"],
                         help="Use the ignore file matching this Ansible version. "
                              "The special value '-' may be specified to read "
                              "from stdin instead. If not specified, will use all available files")),
