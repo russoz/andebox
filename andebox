@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 import argparse
 import os
@@ -17,7 +18,7 @@ __version__ = '0.3.0'
 PLUGIN_TYPES = ('connection', 'lookup', 'modules', 'doc_fragments', 'module_utils', 'callback', 'inventory')
 
 
-class AndeBox(object):
+class AndeBox:
     actions = {}
     parser = None
 
@@ -40,7 +41,7 @@ class AndeBox(object):
         action.run(args)
 
 
-class AndeboxAction(object):
+class AndeboxAction:
     name = None
     help = None
     args = []  # of dict(names=[], specs={})
@@ -81,7 +82,7 @@ class AnsibleTestError(Exception):
     pass
 
 
-class IgnoreFileEntry(object):
+class IgnoreFileEntry:
     pattern = re.compile(r'^(?P<filename>\S+)\s(?P<ignore>\S+)(?:\s+#\s*(?P<comment>\S.*\S))?\s*$')
     file_filter = None
     check_filter = None
@@ -128,18 +129,18 @@ class IgnoreFileEntry(object):
         if ffilter is not None:
             ffilter = ffilter if isinstance(ffilter, re.Pattern) else re.compile(ffilter)
             if not ffilter.search(match.group("filename")):
-                return
+                return None
 
         ifilter = IgnoreFileEntry.check_filter
         if ifilter is not None:
             ifilter = ifilter if isinstance(ifilter, re.Pattern) else re.compile(ifilter)
             if not ifilter.search(match.group("ignore")):
-                return
+                return None
 
         return IgnoreFileEntry(match.group("filename"), match.group("ignore"), match.group("comment"))
 
 
-class ResultLine(object):
+class ResultLine:
     def __init__(self, file_part, ignore_check, count=1):
         self.file_part = file_part
         self.ignore_check = ignore_check
@@ -202,7 +203,7 @@ class AnsibleTestAction(AndeboxAction):
     ]
 
     def make_parser(self, subparser):
-        action_parser = super(AnsibleTestAction, self).make_parser(subparser)
+        action_parser = super().make_parser(subparser)
         action_parser.epilog = "Notice the use of '--' to delimit andebox's options from ansible-test's"
         action_parser.usage = "%(prog)s usage: andebox test [-h] [--keep] -- [ansible_test_params ...]"
 
@@ -218,27 +219,8 @@ class AnsibleTestAction(AndeboxAction):
         print(file=sys.stderr)
 
         try:
-            # copy files to tmp ansible coll dir
-            with os.scandir() as it:
-                for entry in it:
-                    if entry.name.startswith('.'):
-                        continue
-                    if entry.is_dir():
-                        shutil.copytree(entry.name, os.path.join(coll_dir, entry.name))
-                    else:
-                        shutil.copy(entry.name, os.path.join(coll_dir, entry.name))
-
-            if args.exclude_ignore:
-                src_dir = os.path.join(os.getcwd(), 'tests', 'sanity')
-                dest_dir = os.path.join(coll_dir, 'tests', 'sanity')
-                with os.scandir(src_dir) as ts_dir:
-                    for ts_entry in ts_dir:
-                        if ts_entry.name.startswith('ignore-') and ts_entry.name.endswith('.txt'):
-                            self.copy_exclude_lines(os.path.join(src_dir, ts_entry.name),
-                                                    os.path.join(dest_dir, ts_entry.name),
-                                                    [f for
-                                                     f in args.ansible_test_params
-                                                     if f.endswith('.py')])
+            self.copy_collection(coll_dir)
+            self.exclude_from_ignore(args.exclude_ignore, args.ansible_test_params, coll_dir)
 
             os.putenv('COLLECTIONS_PATH', ':'.join([coll_dir] + os.environ.get('COLLECTIONS_PATH', '').split(':')))
             rc = subprocess.call(["ansible-test"] + args.ansible_test_params, cwd=coll_dir)
@@ -252,6 +234,31 @@ class AnsibleTestAction(AndeboxAction):
                 shutil.rmtree(top_dir)
             else:
                 print('Keeping temporary directory: {0}'.format(coll_dir))
+
+    def exclude_from_ignore(self, exclude_ignore, ansible_test_params, coll_dir):
+        if exclude_ignore:
+            src_dir = os.path.join(os.getcwd(), 'tests', 'sanity')
+            dest_dir = os.path.join(coll_dir, 'tests', 'sanity')
+            with os.scandir(src_dir) as ts_dir:
+                for ts_entry in ts_dir:
+                    if ts_entry.name.startswith('ignore-') and ts_entry.name.endswith('.txt'):
+                        self.copy_exclude_lines(os.path.join(src_dir, ts_entry.name),
+                                                os.path.join(dest_dir, ts_entry.name),
+                                                [f for
+                                                 f in ansible_test_params
+                                                 if f.endswith('.py')])
+
+    @staticmethod
+    def copy_collection(coll_dir):
+        # copy files to tmp ansible coll dir
+        with os.scandir() as it:
+            for entry in it:
+                if entry.name.startswith('.'):
+                    continue
+                if entry.is_dir():
+                    shutil.copytree(entry.name, os.path.join(coll_dir, entry.name))
+                else:
+                    shutil.copy(entry.name, os.path.join(coll_dir, entry.name))
 
 
 class IgnoreLinesAction(AndeboxAction):
@@ -285,11 +292,11 @@ class IgnoreLinesAction(AndeboxAction):
             return [sys.stdin]
         if version:
             return [open(os.path.join(ignore_path, 'ignore-{0}.txt'.format(version)))]
-        else:
-            with os.scandir(os.path.join(ignore_path)) as it:
-                return [open(os.path.join(ignore_path, entry.name))
-                        for entry in it
-                        if entry.name.startswith("ignore-") and entry.name.endswith(".txt")]
+
+        with os.scandir(os.path.join(ignore_path)) as it:
+            return [open(os.path.join(ignore_path, entry.name))
+                    for entry in it
+                    if entry.name.startswith("ignore-") and entry.name.endswith(".txt")]
 
     @staticmethod
     def read_ignore_file(fh):
@@ -340,8 +347,8 @@ def info_type(types, v):
     try:
         r = [t for t in types if t.startswith(v.lower())]
         return r[0][0].upper()
-    except IndexError:
-        raise argparse.ArgumentTypeError("invalid value: {0}".format(v))
+    except IndexError as e:
+        raise argparse.ArgumentTypeError("invalid value: {0}".format(v)) from e
 
 
 class RuntimeAction(AndeboxAction):
@@ -422,9 +429,9 @@ if __name__ == '__main__':
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
         main()
     except KeyboardInterrupt:
-        exit(2)
+        sys.exit(2)
     except (BrokenPipeError, IOError):
         pass
     except AnsibleTestError as e:
         print(str(e), file=sys.stderr)
-        exit(1)
+        sys.exit(1)
