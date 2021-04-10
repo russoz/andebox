@@ -12,7 +12,7 @@ import signal
 from functools import reduce, partial
 
 
-__version__ = '0.3.0'
+__version__ = '0.4.0'
 
 
 PLUGIN_TYPES = ('connection', 'lookup', 'modules', 'doc_fragments', 'module_utils', 'callback', 'inventory')
