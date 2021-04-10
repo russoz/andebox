@@ -29,7 +29,7 @@ class AndeBox:
         self.parser = argparse.ArgumentParser(prog="andebox", description="Ansible Collection Developer's Box")
         self.parser.add_argument("--version", action="version", version="%(prog)s {0}".format(__version__))
         self.parser.add_argument("--collection", "-c",
-                                 help="Ansible name for the collection, in the form namespace.name")
+                                 help="fully qualified collection name (not necessary if a proper galaxy.yml file is available)")
         subparser = self.parser.add_subparsers(dest="action", required=True)
 
         for action in self.actions.values():
@@ -193,7 +193,7 @@ class ResultLine:
 
 class AnsibleTestAction(AndeboxAction):
     name = "test"
-    help = "Runs ansible-test in a temporary environment"
+    help = "runs ansible-test in a temporary environment"
     args = [
         dict(names=("--keep", "-k"),
              specs=dict(action="store_true", help="Keep temporary directory after execution")),
@@ -264,7 +264,7 @@ class AnsibleTestAction(AndeboxAction):
 
 class IgnoreLinesAction(AndeboxAction):
     name = "ignores"
-    help = "Gathers stats on ignore*.txt file(s)"
+    help = "gathers stats on ignore*.txt file(s)"
     args = [
         dict(names=["--ignore-file-spec", "-ifs"],
              specs=dict(choices=["2.9", "2.10", "2.11", "2.12", "-"],
@@ -355,7 +355,7 @@ def info_type(types, v):
 class RuntimeAction(AndeboxAction):
     RUNTIME_TYPES = ('redirect', 'tombstone', 'deprecation')
     name = "runtime"
-    help = "Returns runtime.yml information on the plugin"
+    help = "returns information from runtime.yml"
     args = [
         dict(names=["--plugin-type", "-pt"],
              specs=dict(choices=PLUGIN_TYPES,
