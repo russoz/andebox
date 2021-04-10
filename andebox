@@ -26,7 +26,8 @@ class AndeBox:
         self.actions.update({ac.name: ac() for ac in actions})
 
     def build_argparser(self):
-        self.parser = argparse.ArgumentParser(description="Ansible Collection Developer's Box")
+        self.parser = argparse.ArgumentParser(prog="andebox", description="Ansible Collection Developer's Box")
+        self.parser.add_argument("--version", action="version", version="%(prog)s {0}".format(__version__))
         self.parser.add_argument("--collection", "-c",
                                  help="Ansible name for the collection, in the form namespace.name")
         subparser = self.parser.add_subparsers(dest="action", required=True)
