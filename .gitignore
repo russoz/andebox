@@ -1,6 +1,8 @@
-build/*
+.env
+.idea
 dist/*
-**/*.pyc
-**/__pycache__
-**/*.egg-info/*
+build/*
+*.egg-info
 .tox/*
+Pipfile*
+**/*.pyc
