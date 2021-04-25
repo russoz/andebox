@@ -73,11 +73,11 @@ class AndeboxAction:
         return self.read_coll_meta()[:2]
 
     @staticmethod
-    def copy_exclude_lines(src, dest, filenames):
+    def copy_exclude_lines(src, dest, exclusion_filenames):
         with open(src, "r") as src_file:
             with open(dest, "w") as dest_file:
                 for line in src_file.readline():
-                    if not any(line.startswith(f) for f in filenames):
+                    if not any(line.startswith(f) for f in exclusion_filenames):
                         dest_file.write(line)
 
 
@@ -216,7 +216,7 @@ class AnsibleTestAction(AndeboxAction):
         top_dir = tempfile.mkdtemp(prefix="andebox.")
         coll_dir = os.path.join(top_dir, "ansible_collections", namespace, collection)
         os.makedirs(coll_dir)
-        info = {"namespace": namespace, "collection": collection, "top_dir": top_dir, "coll_dir": coll_dir}
+        info = {"collection": "{0}.{1}".format(namespace, collection), "top_dir": top_dir, "coll_dir": coll_dir}
         for k, v in info.items():
             print("{0:10} = {1}".format(k, v), file=sys.stderr)
         print(file=sys.stderr)
@@ -247,9 +247,7 @@ class AnsibleTestAction(AndeboxAction):
                     if ts_entry.name.startswith('ignore-') and ts_entry.name.endswith('.txt'):
                         self.copy_exclude_lines(os.path.join(src_dir, ts_entry.name),
                                                 os.path.join(dest_dir, ts_entry.name),
-                                                [f for
-                                                 f in ansible_test_params
-                                                 if f.endswith('.py')])
+                                                ansible_test_params)
 
     @staticmethod
     def copy_collection(coll_dir):
