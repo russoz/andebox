@@ -80,6 +80,9 @@ class AndeboxAction:
                     if not any(line.startswith(f) for f in exclusion_filenames):
                         dest_file.write(line)
 
+    def __str__(self):
+        return "<AndeboxAction: {name}>".format(name=self.name)
+
 
 class AnsibleTestError(Exception):
     pass
