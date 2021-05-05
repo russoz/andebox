@@ -15,7 +15,7 @@ from contextlib import contextmanager
 from distutils.version import LooseVersion
 
 
-__version__ = '0.10'
+__version__ = '0.11'
 
 
 PLUGIN_TYPES = ('connection', 'lookup', 'modules', 'doc_fragments', 'module_utils', 'callback', 'inventory')
