@@ -10,6 +10,7 @@ import sys
 import tempfile
 import signal
 from functools import reduce, partial
+from contextlib import contextmanager
 
 from distutils.version import LooseVersion
 
@@ -49,6 +50,38 @@ class AndeboxAction:
     help = None
     args = []  # of dict(names=[], specs={})
 
+    @staticmethod
+    def copy_collection(coll_dir):
+        # copy files to tmp ansible coll dir
+        with os.scandir() as it:
+            for entry in it:
+                if entry.name.startswith('.'):
+                    continue
+                if entry.is_dir():
+                    shutil.copytree(entry.name, os.path.join(coll_dir, entry.name))
+                else:
+                    shutil.copy(entry.name, os.path.join(coll_dir, entry.name))
+
+    @contextmanager
+    def ansible_collection_tree(self, namespace, collection, keep=False):
+        try:
+            top_dir = tempfile.mkdtemp(prefix="andebox.")
+            coll_dir = os.path.join(top_dir, "ansible_collections", namespace, collection)
+            os.makedirs(coll_dir)
+            print("{0:10} = {1}.{2}".format("collection", namespace, collection), file=sys.stderr)
+            print("{0:10} = {1}".format("directory", coll_dir), file=sys.stderr)
+
+            self.copy_collection(coll_dir)
+            os.putenv('COLLECTIONS_PATH', ':'.join([coll_dir] + os.environ.get('COLLECTIONS_PATH', '').split(':')))
+            yield coll_dir
+
+        finally:
+            if not keep:
+                print('Removing temporary directory: {0}'.format(coll_dir))
+                shutil.rmtree(top_dir)
+            else:
+                print('Keeping temporary directory: {0}'.format(coll_dir))
+
     def make_parser(self, subparser):
         action_parser = subparser.add_parser(self.name, help=self.help)
         for arg in self.args:
@@ -76,7 +109,7 @@ class AndeboxAction:
     def copy_exclude_lines(src, dest, exclusion_filenames):
         with open(src, "r") as src_file:
             with open(dest, "w") as dest_file:
-                for line in src_file.readline():
+                for line in src_file.readlines():
                     if not any(line.startswith(f) for f in exclusion_filenames):
                         dest_file.write(line)
 
@@ -202,7 +235,7 @@ class AnsibleTestAction(AndeboxAction):
     args = [
         dict(names=("--keep", "-k"),
              specs=dict(action="store_true", help="Keep temporary directory after execution")),
-        dict(names=("--exclude-ignore", "-ei"),
+        dict(names=("--exclude-from-ignore", "-efi"),
              specs=dict(action="store_true", help="Matching lines in ignore files will be filtered out")),
         dict(names=("ansible_test_params", ),
              specs=dict(nargs="+")),
@@ -215,34 +248,17 @@ class AnsibleTestAction(AndeboxAction):
 
     def run(self, args):
         namespace, collection = self.determine_collection(args.collection)
-
-        top_dir = tempfile.mkdtemp(prefix="andebox.")
-        coll_dir = os.path.join(top_dir, "ansible_collections", namespace, collection)
-        os.makedirs(coll_dir)
-        info = {"collection": "{0}.{1}".format(namespace, collection), "top_dir": top_dir, "coll_dir": coll_dir}
-        for k, v in info.items():
-            print("{0:10} = {1}".format(k, v), file=sys.stderr)
-        print(file=sys.stderr)
-
-        try:
-            self.copy_collection(coll_dir)
-            self.exclude_from_ignore(args.exclude_ignore, args.ansible_test_params, coll_dir)
-
-            os.putenv('COLLECTIONS_PATH', ':'.join([coll_dir] + os.environ.get('COLLECTIONS_PATH', '').split(':')))
-            rc = subprocess.call(["ansible-test"] + args.ansible_test_params, cwd=coll_dir)
+        with self.ansible_collection_tree(namespace, collection, args.keep) as collection_dir:
+            self.exclude_from_ignore(args.exclude_from_ignore, args.ansible_test_params, collection_dir)
+            rc = subprocess.call(["ansible-test"] + args.ansible_test_params, cwd=collection_dir)
 
             if rc != 0:
                 raise AnsibleTestError("Error running ansible-test (rc={0})".format(rc))
 
-        finally:
-            if not args.keep:
-                print('Removing temporary directory: {0}'.format(coll_dir))
-                shutil.rmtree(top_dir)
-            else:
-                print('Keeping temporary directory: {0}'.format(coll_dir))
-
-    def exclude_from_ignore(self, exclude_ignore, ansible_test_params, coll_dir):
-        if exclude_ignore:
+    def exclude_from_ignore(self, exclude_from_ignore, ansible_test_params, coll_dir):
+        files = [f for f in ansible_test_params if os.path.isfile(f)]
+        print("Excluding from ignore files: {files}".format(files=files))
+        if exclude_from_ignore:
             src_dir = os.path.join(os.getcwd(), 'tests', 'sanity')
             dest_dir = os.path.join(coll_dir, 'tests', 'sanity')
             with os.scandir(src_dir) as ts_dir:
@@ -250,19 +266,7 @@ class AnsibleTestAction(AndeboxAction):
                     if ts_entry.name.startswith('ignore-') and ts_entry.name.endswith('.txt'):
                         self.copy_exclude_lines(os.path.join(src_dir, ts_entry.name),
                                                 os.path.join(dest_dir, ts_entry.name),
-                                                ansible_test_params)
-
-    @staticmethod
-    def copy_collection(coll_dir):
-        # copy files to tmp ansible coll dir
-        with os.scandir() as it:
-            for entry in it:
-                if entry.name.startswith('.'):
-                    continue
-                if entry.is_dir():
-                    shutil.copytree(entry.name, os.path.join(coll_dir, entry.name))
-                else:
-                    shutil.copy(entry.name, os.path.join(coll_dir, entry.name))
+                                                files)
 
 
 class IgnoreLinesAction(AndeboxAction):
