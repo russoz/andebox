@@ -123,8 +123,8 @@ class AnsibleTestError(Exception):
 
 class IgnoreFileEntry:
     pattern = re.compile(r'^(?P<filename>\S+)\s(?P<ignore>\S+)(?:\s+#\s*(?P<comment>\S.*\S))?\s*$')
-    file_filter = None
-    check_filter = None
+    filter_files = None
+    filter_checks = None
     file_parts_depth = None
 
     def __init__(self, filename, ignore, comment):
@@ -164,13 +164,13 @@ class IgnoreFileEntry:
         if not match:
             raise ValueError("Line cannot be parsed as an ignore-file entry: {0}".format(line))
 
-        ffilter = IgnoreFileEntry.file_filter
+        ffilter = IgnoreFileEntry.filter_files
         if ffilter is not None:
             ffilter = ffilter if isinstance(ffilter, re.Pattern) else re.compile(ffilter)
             if not ffilter.search(match.group("filename")):
                 return None
 
-        ifilter = IgnoreFileEntry.check_filter
+        ifilter = IgnoreFileEntry.filter_checks
         if ifilter is not None:
             ifilter = ifilter if isinstance(ifilter, re.Pattern) else re.compile(ifilter)
             if not ifilter.search(match.group("ignore")):
@@ -235,7 +235,7 @@ class AnsibleTestAction(AndeboxAction):
     args = [
         dict(names=("--keep", "-k"),
              specs=dict(action="store_true", help="Keep temporary directory after execution")),
-        dict(names=("--exclude-from-ignore", "-efi"),
+        dict(names=("--exclude-from-ignore", "-efi", "-ei"),
              specs=dict(action="store_true", help="Matching lines in ignore files will be filtered out")),
         dict(names=("ansible_test_params", ),
              specs=dict(nargs="+")),
@@ -292,9 +292,9 @@ class IgnoreLinesAction(AndeboxAction):
                                  "from stdin instead. If not specified, will use all available files")),
             dict(names=["--depth", "-d"],
                  specs=dict(type=int, help="Path depth for grouping files")),
-            dict(names=["--file-filter", "-ff"],
+            dict(names=["--filter-files", "-ff"],
                  specs=dict(type=re.compile, help="Regexp matching file names to be included")),
-            dict(names=["--check-filter", "-cf"],
+            dict(names=["--filter-checks", "-fc"],
                  specs=dict(type=re.compile, help="Regexp matching checks in ignore files to be included")),
             dict(names=["--suppress-files", "-sf"],
                  specs=dict(action="store_true", help="Supress file names from the output, consolidating the results")),
@@ -337,10 +337,10 @@ class IgnoreLinesAction(AndeboxAction):
         return lines[num:] if num < 0 else lines[:num]
 
     def run(self, args):
-        if args.file_filter:
-            IgnoreFileEntry.file_filter = args.file_filter
-        if args.check_filter:
-            IgnoreFileEntry.check_filter = args.check_filter
+        if args.filter_files:
+            IgnoreFileEntry.filter_files = args.filter_files
+        if args.filter_checks:
+            IgnoreFileEntry.filter_checks = args.filter_checks
         if args.depth:
             IgnoreFileEntry.file_parts_depth = args.depth
 
