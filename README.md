@@ -26,33 +26,15 @@ After installing the tool (ensuring it is reachable in from `PATH`), there are d
 
 ### Drop-in ansible-test
 
-```
-andebox test -h
-usage: andebox test usage: andebox test [-h] [--keep] -- [ansible_test_params ...]
-
-positional arguments:
-  ansible_test_params
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --keep, -k            Keep temporary directory after execution
-  --exclude-ignore, -ei
-                        Matching lines in ignore files will be filtered out
-
-Notice the use of '--' to delimit andebox's options from ansible-test's
-```
-
 Arranging the directories the way Ansible expects them to be is a boilerplate step, and not the way everyone likes to have their git repos.
-No need to worry about that anymore.
+No need to worry about that anymore:
 
     $ andebox test -- sanity --docker default -v --test validate-modules plugins/modules/system/xfconf.py
 
 Producing an output similar to:
 
-    namespace  = community
-    collection = general
-    top_dir    = /tmp/andebox.i2aeeqpm
-    coll_dir   = /tmp/andebox.i2aeeqpm/ansible_collections/community/general
+    collection = community.general
+    directory  = /tmp/andebox.i2aeeqpm/ansible_collections/community/general
     
     Run command: docker images quay.io/ansible/default-test-container:2.7.0 --format '{{json .}}'
     Scanning collection root: /tmp/andebox.i2aeeqpm/ansible_collections
@@ -77,28 +59,7 @@ example) to test their code with multiple `ansible` versions.
 
 ### Stats on ignore files
 
-```
-andebox ignores -h
-usage: andebox ignores [-h] [--ignore-file-spec {2.9,2.10,2.11,-}] [--depth DEPTH] [--file-filter FILE_FILTER] [--check-filter CHECK_FILTER] [--suppress-files] [--suppress-checks] [--head HEAD]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --ignore-file-spec {2.9,2.10,2.11,-}, -ifs {2.9,2.10,2.11,-}
-                        Use the ignore file matching this Ansible version. The special value '-' may be specified to read from stdin instead. If not specified, will use all available files
-  --depth DEPTH, -d DEPTH
-                        Path depth for grouping files
-  --file-filter FILE_FILTER, -ff FILE_FILTER
-                        Regexp matching file names to be included
-  --check-filter CHECK_FILTER, -cf CHECK_FILTER
-                        Regexp matching checks in ignore files to be included
-  --suppress-files, -sf
-                        Supress file names from the output, consolidating the results
-  --suppress-checks, -sc
-                        Suppress the checks from the output, consolidating the results
-  --head HEAD, -H HEAD  Number of lines to display in the output: leading lines if positive, trailing lines if negative, all lines if zero.
-```
-
-Gathering stats from the ignore files can be quite annoying, especially if they are long.
+Gathering stats from the ignore files can be quite annoying, especially if they are long. One can run:
 
     $ andebox ignores -v2.10 -d4 -i '.*:parameter-list-no-elements'
 
@@ -117,29 +78,14 @@ Producing an output similar to:
 
 ### Runtime config
 
-```
-andebox runtime -h
-usage: andebox runtime [-h] [--plugin-type {connection,lookup,modules,doc_fragments,module_utils,callback,inventory}] [--regex] [--info-type INFO_TYPE] plugin_names [plugin_names ...]
-
-positional arguments:
-  plugin_names
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --plugin-type {connection,lookup,modules,doc_fragments,module_utils,callback,inventory}, -pt {connection,lookup,modules,doc_fragments,module_utils,callback,inventory}
-                        Specify the plugin type to be searched
-  --regex, --regexp, -r
-                        Treat plugin names as regular expressions
-  --info-type INFO_TYPE, -it INFO_TYPE
-                        Restrict type of response elements. Must be in ('redirect', 'tombstone', 'deprecation'), may be shortened down to one letter.
-```
-
 Quickly peek what's in the `runtime.yml`:
 
 ```
 $ andebox runtime scaleway_ip_facts
 D modules scaleway_ip_facts: deprecation in 3.0.0 (current=2.4.0): Use community.general.scaleway_ip_info instead.
 ```
+
+Or:
 
 ```
 $ andebox runtime -r 'gc[pe]'
