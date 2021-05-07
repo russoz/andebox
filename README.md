@@ -26,8 +26,8 @@ After installing the tool (ensuring it is reachable in from `PATH`), there are d
 
 ### Drop-in ansible-test
 
-Arranging the directories the way Ansible expects them to be is a boilerplate step, and not the way everyone likes to have their git repos.
-No need to worry about that anymore:
+Arranging the collection directory the way Ansible is a boilerplate step, and not the way everyone likes to have their git repos.
+No need to worry anymore:
 
     $ andebox test -- sanity --docker default -v --test validate-modules plugins/modules/system/xfconf.py
 
@@ -61,7 +61,7 @@ example) to test their code with multiple `ansible` versions.
 
 Gathering stats from the ignore files can be quite annoying, especially if they are long. One can run:
 
-    $ andebox ignores -v2.10 -d4 -i '.*:parameter-list-no-elements'
+    $ andebox ignores -v2.10 -d4 -fc '.*:parameter-list-no-elements'
 
 Producing an output similar to:
 
