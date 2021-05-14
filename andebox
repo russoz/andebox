@@ -249,7 +249,8 @@ class AnsibleTestAction(AndeboxAction):
     def run(self, args):
         namespace, collection = self.determine_collection(args.collection)
         with self.ansible_collection_tree(namespace, collection, args.keep) as collection_dir:
-            self.exclude_from_ignore(args.exclude_from_ignore, args.ansible_test_params, collection_dir)
+            if args.exclude_from_ignore:
+                self.exclude_from_ignore(args.exclude_from_ignore, args.ansible_test_params, collection_dir)
             rc = subprocess.call(["ansible-test"] + args.ansible_test_params, cwd=collection_dir)
 
             if rc != 0:
