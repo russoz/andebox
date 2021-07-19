@@ -7,7 +7,7 @@ import argparse
 import sys
 import signal
 
-__version__ = '0.13'
+__version__ = '0.13.1'
 
 from andeboxlib.actions.ansibletest import AnsibleTestError, AnsibleTestAction
 from andeboxlib.actions.ignorefile import IgnoreLinesAction
