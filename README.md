@@ -85,7 +85,7 @@ $ andebox runtime scaleway_ip_facts
 D modules scaleway_ip_facts: deprecation in 3.0.0 (current=2.4.0): Use community.general.scaleway_ip_info instead.
 ```
 
-Or:
+Or using a regular expression:
 
 ```
 $ andebox runtime -r 'gc[pe]'
