@@ -24,38 +24,45 @@ the drop-in `ansible-test` feature (see comments below).
 
 After installing the tool (ensuring it is reachable in from `PATH`), there are different actions available, as described below.
 
-### Drop-in ansible-test
+### Simplify ansible-test
 
-Arranging the collection directory the way Ansible is a boilerplate step, and not the way everyone likes to have their git repos.
-No need to worry anymore:
+No need to clone in specific locations or keep track of env variables. Simply clone whichever collection you want and run:
 
-    $ andebox test -- sanity --docker default -v --test validate-modules plugins/modules/system/xfconf.py
-
-Producing an output similar to:
-
-    collection = community.general
-    directory  = /tmp/andebox.i2aeeqpm/ansible_collections/community/general
-    
-    Run command: docker images quay.io/ansible/default-test-container:2.7.0 --format '{{json .}}'
-    Scanning collection root: /tmp/andebox.i2aeeqpm/ansible_collections
-    Including collection: community.general (2565 files)
-    [...]
-    Running sanity test 'validate-modules' with Python 3.6
-    Read 391 sanity test ignore line(s) for Ansible 2.10 from: tests/sanity/ignore-2.10.txt
-    [...]
-    Run command: /usr/bin/python3.6 /root/ansible/test/lib/ansible_test/_data/collection_detail.py /root/ansible_collections/commun ...
-    Run command: /usr/bin/python3.6 /root/ansible/test/lib/ansible_test/_data/sanity/validate-modules/validate-modules --format jso ...
-    [...]
-    Run command: docker rm -f 7784964b35b32ae1a89e233a052045751d1fa6da73076eabfc40d0c5f4e72cb6
+    $ andebox test -- sanity --docker default -v --test validate-modules
 
 By default, `andebox` will discover the full name of the collection by parsing the `galaxy.yml` file usually found in the local directory.
 If the file is not present or if it fails for any reason, the option `--collection` may be used to specify it, as in:
 
-    andebox test --collection community.general -- sanity --docker default -v --test validate-modules plugins/modules/system/xfconf.py
+    $ andebox test --collection community.general -- sanity --docker default -v --test validate-modules
 
-Also notice that, as `andebox` uses whichever `ansible-test` is available in `PATH` for execution, the developer
-freedom to use any version of `ansible` they see fit, and even allowing a more sophisticated setup (with `tox` for 
-example) to test their code with multiple `ansible` versions.
+Please notice that `andebox` uses whichever `ansible-test` is available in `PATH` for execution
+
+### Multiply ansible-test
+
+By combining `andebox` with `tox` it is possible to run multiple tests, with multiple ansible versions, or python versions,
+or different target-OS. An example `tox.ini`:
+
+```ini
+[tox]
+isolated_build = true
+envlist = 29, 210, 211, dev
+skipsdist = true
+
+[testenv]
+passenv = PWD HOME
+skip_install = true
+allowlist_externals = andebox
+deps =
+  andebox
+  29: ansible>=2.9,<2.10
+  210: ansible-base>=2.10,<2.11
+  211: ansible-core>=2.11,<2.12
+  dev: https://github.com/ansible/ansible/archive/devel.tar.gz
+commands = andebox test -- {posargs}
+```
+To run tests with the four different ansible versions:
+
+    $ tox -- sanity --docker fedora8 --python 3.9 -v
 
 ### Stats on ignore files
 
