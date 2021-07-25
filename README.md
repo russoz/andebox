@@ -62,7 +62,9 @@ commands = andebox test -- {posargs}
 ```
 To run tests with the four different ansible versions:
 
-    $ tox -- sanity --docker fedora8 --python 3.9 -v
+```shell
+$ tox -- sanity --docker fedora8 --python 3.9 -v
+```
 
 ### Stats on ignore files
 
@@ -85,7 +87,7 @@ Producing an output similar to:
 
 ### Runtime config
 
-Quickly peek what's in the `runtime.yml`:
+Quickly peek what is the `runtime.yml` status for a specific module:
 
 ```
 $ andebox runtime scaleway_ip_facts
