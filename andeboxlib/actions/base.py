@@ -38,7 +38,7 @@ class AndeboxAction:
             print("{0:10} = {1}".format("directory", coll_dir), file=sys.stderr)
 
             self.copy_collection(coll_dir)
-            os.putenv('COLLECTIONS_PATH', ':'.join([coll_dir] + os.environ.get('COLLECTIONS_PATH', '').split(':')))
+            os.putenv('ANSIBLE_COLLECTIONS_PATH', ':'.join([top_dir] + os.environ.get('ANSIBLE_COLLECTIONS_PATH', '').split(':')))
             yield coll_dir
 
         finally:
