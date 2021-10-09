@@ -3,15 +3,17 @@
 # (c) 2021, Alexei Znamensky <russoz@gmail.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+__version__ = '0.13.1'
+
 import argparse
 import sys
 import signal
 
-__version__ = '0.13.1'
-
-from andeboxlib.actions.ansibletest import AnsibleTestError, AnsibleTestAction
+from andeboxlib.exceptions import AndeboxException
+from andeboxlib.actions.ansibletest import AnsibleTestAction
 from andeboxlib.actions.ignorefile import IgnoreLinesAction
 from andeboxlib.actions.runtime import RuntimeAction
+from andeboxlib.actions.toxtest import ToxTestAction
 
 
 class AndeBox:
@@ -40,7 +42,7 @@ class AndeBox:
 
 def main():
     box = AndeBox()
-    box.add_actions(AnsibleTestAction, IgnoreLinesAction, RuntimeAction)
+    box.add_actions(AnsibleTestAction, IgnoreLinesAction, RuntimeAction, ToxTestAction)
     box.run()
 
 
@@ -52,6 +54,6 @@ if __name__ == '__main__':
         sys.exit(2)
     except BrokenPipeError:
         pass
-    except AnsibleTestError as e:
+    except AndeboxException as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)

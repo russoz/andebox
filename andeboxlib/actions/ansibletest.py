@@ -6,9 +6,10 @@ import os
 import subprocess
 
 from andeboxlib.actions.base import AndeboxAction
+from andeboxlib.exceptions import AndeboxException
 
 
-class AnsibleTestError(Exception):
+class AnsibleTestError(AndeboxException):
     pass
 
 
