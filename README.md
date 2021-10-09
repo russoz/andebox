@@ -3,8 +3,8 @@ andebox
 
 Ansible Developer's (tool)Box, **andebox**, is a single script to assist Ansible developers
 by encapsulating some boilerplate tasks. Right now the core feature is the ability to run
-`ansible-test` on a collection dircetory without having to worry about your `COLLECTIONS_PATH`
-environment variable nor having the _expected_ directory structure _above_ the collection 
+`ansible-test` on a collection dircetory without having to worry about your `ANSIBLE_COLLECTIONS_PATH`
+environment variable nor having the _expected_ directory structure _above_ the collection
 directory.
 
 It also allows some basic stats gathering from the `tests/sanity/ignore-X.Y.txt` files.
@@ -17,7 +17,7 @@ Install it as usual:
 
 ### Dependencies
 
-As of this version, the dependencies are `PyYAML` for reading `galaxy.yml`, and `ansible` itself for 
+As of this version, the dependencies are `PyYAML` for reading `galaxy.yml`, and `ansible` itself for
 the drop-in `ansible-test` feature (see comments below).
 
 ## Usage
@@ -26,11 +26,15 @@ After installing the tool (ensuring it is reachable in from `PATH`), there are d
 
 ### Simplify ansible-test
 
-No need to clone in specific locations or keep track of env variables. Simply clone whichever collection you want and run:
+No need to clone in specific locations or keep track of env variables. Simply clone whichever collection you want and
+run the `ansible-test` command as:
 
-    $ andebox test -- sanity --docker default -v --test validate-modules
+    $ andebox test -- sanity --docker default --test validate-modules plugins/modules/mymodule.py
+    $ andebox test -- unit --docker default test/units/plugins/modules/mymodule.py
+    $ andebox test -- integration --docker default mymodule
 
-By default, `andebox` will discover the full name of the collection by parsing the `galaxy.yml` file usually found in the local directory.
+By default, `andebox` will discover the full name of the collection by parsing the `galaxy.yml` file usually found in
+the local directory.
 If the file is not present or if it fails for any reason, the option `--collection` may be used to specify it, as in:
 
     $ andebox test --collection community.general -- sanity --docker default -v --test validate-modules
@@ -39,13 +43,26 @@ Please notice that `andebox` uses whichever `ansible-test` is available in `PATH
 
 ### Multiply ansible-test
 
-By combining `andebox` with `tox` it is possible to run multiple tests, with multiple ansible versions, or python versions,
-or different target-OS. An example `tox.ini`:
+Simply run one of :
+
+    $ andebox tox-test -- sanity --docker default --test validate-modules plugins/modules/mymodule.py
+    $ andebox tox-test -- unit --docker default test/units/plugins/modules/mymodule.py
+    $ andebox tox-test -- integration --docker default mymodule
+
+Or specify the ansible versions you want tested:
+
+    $ andebox tox-test -e 29 -- sanity --docker default --test validate-modules plugins/modules/mymodule.py
+    $ andebox tox-test -e 211 -- unit --docker default test/units/plugins/modules/mymodule.py
+    $ andebox tox-test -e a4 -- integration --docker default mymodule
+
+The `tox-test` will create a custom `tox.ini` file with the name `.andebox-tox-test.ini` in the current directory.
+That file will not be overwritten by `andebox`, and its default content is:
 
 ```ini
+; andebox tox-test's tox.ini -- this file is not overwritten by andebox
 [tox]
 isolated_build = true
-envlist = 29, 210, 211, dev
+envlist = 29, 210, 211, a3, a4, dev
 skipsdist = true
 
 [testenv]
@@ -57,13 +74,10 @@ deps =
   29: ansible>=2.9,<2.10
   210: ansible-base>=2.10,<2.11
   211: ansible-core>=2.11,<2.12
+  a3: ansible>=3.0.0,<4.0.0
+  a4: ansible>=4.0.0,<5.0.0
   dev: https://github.com/ansible/ansible/archive/devel.tar.gz
 commands = andebox test -- {posargs}
-```
-To run tests with the four different ansible versions:
-
-```shell
-$ tox -- sanity --docker fedora8 --python 3.9 -v
 ```
 
 ### Stats on ignore files
