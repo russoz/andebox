@@ -71,11 +71,10 @@ class AndeboxAction:
 
     @staticmethod
     def copy_exclude_lines(src, dest, exclusion_filenames):
-        with open(src, "r") as src_file:
-            with open(dest, "w") as dest_file:
-                for line in src_file.readlines():
-                    if not any(line.startswith(f) for f in exclusion_filenames):
-                        dest_file.write(line)
+        with open(src, "r") as src_file, open(dest, "w") as dest_file:
+            for line in src_file.readlines():
+                if not any(line.startswith(f) for f in exclusion_filenames):
+                    dest_file.write(line)
 
     def __str__(self):
         return "<AndeboxAction: {name}>".format(name=self.name)
