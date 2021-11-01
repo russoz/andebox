@@ -127,19 +127,23 @@ class IgnoreLinesAction(AndeboxAction):
 
     @property
     def args(self):
-        with os.scandir(os.path.join(self.ignore_path)) as it:
-            ignore_versions = sorted([
-                str(LooseVersion(entry.name[7:-4]))
-                for entry in it
-                if entry.name.startswith("ignore-") and entry.name.endswith(".txt")
-            ])
+        try:
+            with os.scandir(os.path.join(self.ignore_path)) as it:
+                ignore_versions = sorted([
+                    str(LooseVersion(entry.name[7:-4]))
+                    for entry in it
+                    if entry.name.startswith("ignore-") and entry.name.endswith(".txt")
+                ])
+        except FileNotFoundError:
+            ignore_versions = []
 
         return [
             dict(names=["--ignore-file-spec", "-ifs"],
                  specs=dict(choices=ignore_versions + ["-"],
                             help="Use the ignore file matching this Ansible version. "
                                  "The special value '-' may be specified to read "
-                                 "from stdin instead. If not specified, will use all available files")),
+                                 "from stdin instead. If not specified, will use all available files. "
+                                 "If no choices are presented, the collection structure was not recognized.")),
             dict(names=["--depth", "-d"],
                  specs=dict(type=int, help="Path depth for grouping files")),
             dict(names=["--filter-files", "-ff"],
