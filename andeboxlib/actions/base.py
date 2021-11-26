@@ -15,13 +15,14 @@ class AndeboxAction:
     name = None
     help = None
     args = []  # of dict(names=[]: specs={})
+    coll_copy_exclusion = ('.git', '.tox', '.venv', '.virtualvenv', 'venv', 'virtualenv')
 
     @staticmethod
     def copy_collection(coll_dir):
         # copy files to tmp ansible coll dir
         with os.scandir() as it:
             for entry in it:
-                if entry.name.startswith('.'):
+                if any(entry.name.startswith(x) for x in AndeboxAction.coll_copy_exclusion):
                     continue
                 if entry.is_dir():
                     shutil.copytree(entry.name, os.path.join(coll_dir, entry.name))
