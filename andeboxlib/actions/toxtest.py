@@ -44,6 +44,8 @@ class ToxTestAction(AndeboxAction):
              specs=dict(help="tox environments to run the test in")),
         dict(names=("--list", "-l"),
              specs=dict(action="store_true", help="list all tox environments (tox -a)")),
+        dict(names=("--recreate", "-r"),
+             specs=dict(action="store_true", help="force recreation of virtual environments (tox -r)")),
         dict(names=("ansible_test_params", ),
              specs=dict(nargs="*")),
     ]
@@ -62,6 +64,8 @@ class ToxTestAction(AndeboxAction):
         cmd_args = ["tox", "-c", self.tox_ini_filename]
         if args.list:
             cmd_args.append("-a")
+        if args.recreate:
+            cmd_args.append("-r")
         if args.env:
             cmd_args.extend(["-e", args.env])
         cmd_args.append("--")
