@@ -51,6 +51,7 @@ if __name__ == '__main__':
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
         main()
     except KeyboardInterrupt:
+        print("Interrupted by user", file=sys.stderr)
         sys.exit(2)
     except BrokenPipeError:
         pass
